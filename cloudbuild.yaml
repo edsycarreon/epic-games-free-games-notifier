@@ -1,8 +1,8 @@
-# Google Cloud Build configuration for CI/CD
-# Automatically builds and deploys on git push
+# Cloud Build configuration - deploys on push to main
+# Project: epic-games-free-games-bot
 
 steps:
-  # Build the Docker image
+  # Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -12,16 +12,12 @@ steps:
       - 'gcr.io/$PROJECT_ID/epic-games-notifier:latest'
       - '.'
 
-  # Push the Docker image to Container Registry
+  # Push to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'gcr.io/$PROJECT_ID/epic-games-notifier:$COMMIT_SHA'
+    args: ['push', 'gcr.io/$PROJECT_ID/epic-games-notifier:$COMMIT_SHA']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'gcr.io/$PROJECT_ID/epic-games-notifier:latest'
+    args: ['push', 'gcr.io/$PROJECT_ID/epic-games-notifier:latest']
 
   # Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -30,27 +26,46 @@ steps:
       - 'run'
       - 'deploy'
       - 'epic-games-notifier'
-      - '--image=gcr.io/$PROJECT_ID/epic-games-notifier:$COMMIT_SHA'
-      - '--region=us-central1'
+      - '--image=gcr.io/$PROJECT_ID/epic-games-notifier:latest'
+      - '--region=asia-southeast1'
       - '--platform=managed'
       - '--allow-unauthenticated'
       - '--memory=512Mi'
-      - '--cpu=1'
       - '--timeout=300'
       - '--max-instances=1'
       - '--min-instances=0'
-      - '--set-env-vars=EPIC_LOCALE=en-US,EPIC_COUNTRY=US'
+      - '--set-env-vars=EPIC_LOCALE=en-US,EPIC_COUNTRY=PH'
       - '--set-secrets=DISCORD_WEBHOOK_URL=discord-webhook-url:latest'
 
-# Store images in Container Registry
+  # Update/Create Cloud Scheduler job
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        # Get the service URL
+        SERVICE_URL=$(gcloud run services describe epic-games-notifier \
+          --region=asia-southeast1 \
+          --format='value(status.url)')
+
+        # Delete existing job if it exists (ignore errors)
+        gcloud scheduler jobs delete epic-games-notifier-daily-check \
+          --location=asia-southeast1 \
+          --quiet 2>/dev/null || true
+
+        # Create the scheduler job
+        gcloud scheduler jobs create http epic-games-notifier-daily-check \
+          --location=asia-southeast1 \
+          --schedule="0 9 * * *" \
+          --uri="$${SERVICE_URL}/check" \
+          --http-method=POST \
+          --time-zone="Asia/Manila" \
+          --description="Daily check for Epic Games free games at 9 AM PHT"
+
 images:
-  - 'gcr.io/$PROJECT_ID/epic-games-notifier:$COMMIT_SHA'
   - 'gcr.io/$PROJECT_ID/epic-games-notifier:latest'
 
-# Build options
 options:
-  machineType: 'N1_HIGHCPU_8'
   logging: CLOUD_LOGGING_ONLY
 
-# Timeout for entire build
-timeout: '1200s'
+timeout: '600s'
