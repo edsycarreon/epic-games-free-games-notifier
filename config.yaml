@@ -3,8 +3,8 @@
 # Epic Games Store API Settings
 epic_games:
   locale: "en-US"
-  country: "US"
-  allow_countries: "US"
+  country: "PH"
+  allow_countries: "PH"
 
 # Discord Settings (for future use)
 discord:
