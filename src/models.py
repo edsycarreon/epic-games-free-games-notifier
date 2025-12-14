@@ -48,8 +48,8 @@ class PromotionalOffer(BaseModel):
         return now < self.start_date
 
 
-class Promotions(BaseModel):
-    """Container for promotional offers."""
+class PromotionalOfferGroup(BaseModel):
+    """Group of promotional offers (Epic's API nests offers in this structure)."""
 
     promotional_offers: list[PromotionalOffer] = Field(
         default_factory=list, alias="promotionalOffers"
@@ -59,11 +59,48 @@ class Promotions(BaseModel):
         populate_by_name = True
 
 
+class Promotions(BaseModel):
+    """Container for promotional offers."""
+
+    promotional_offers: list[PromotionalOfferGroup] = Field(
+        default_factory=list, alias="promotionalOffers"
+    )
+    upcoming_promotional_offers: list[PromotionalOfferGroup] = Field(
+        default_factory=list, alias="upcomingPromotionalOffers"
+    )
+
+    class Config:
+        populate_by_name = True
+
+    def get_all_offers(self) -> list[PromotionalOffer]:
+        """Flatten all promotional offers from groups."""
+        offers = []
+        for group in self.promotional_offers:
+            offers.extend(group.promotional_offers)
+        for group in self.upcoming_promotional_offers:
+            offers.extend(group.promotional_offers)
+        return offers
+
+    def get_current_offers(self) -> list[PromotionalOffer]:
+        """Get all current promotional offers."""
+        offers = []
+        for group in self.promotional_offers:
+            offers.extend(group.promotional_offers)
+        return offers
+
+    def get_upcoming_offers(self) -> list[PromotionalOffer]:
+        """Get all upcoming promotional offers."""
+        offers = []
+        for group in self.upcoming_promotional_offers:
+            offers.extend(group.promotional_offers)
+        return offers
+
+
 class KeyImage(BaseModel):
     """Game image information."""
 
     type: str
-    url: HttpUrl
+    url: str  # Changed from HttpUrl to str to support video URLs like com.epicgames.video://
 
 
 class Seller(BaseModel):
@@ -131,43 +168,64 @@ class FreeGame(BaseModel):
         """Get thumbnail image URL."""
         for img in self.key_images:
             if img.type in ["Thumbnail", "OfferImageWide", "DieselStoreFrontWide"]:
-                return str(img.url)
-        return str(self.key_images[0].url) if self.key_images else None
+                return img.url
+        return self.key_images[0].url if self.key_images else None
 
     @property
     def current_promotions(self) -> list[PromotionalOffer]:
         """Get currently active promotional offers."""
-        if not self.promotions or not self.promotions.promotional_offers:
+        if not self.promotions:
             return []
-        return [offer for offer in self.promotions.promotional_offers if offer.is_active]
+        all_offers = self.promotions.get_all_offers()
+        return [offer for offer in all_offers if offer.is_active]
+
+    @property
+    def is_free(self) -> bool:
+        """Check if the game is 100% free (not just discounted)."""
+        if not self.promotions:
+            return False
+        all_offers = self.promotions.get_all_offers()
+        return any(offer.discount_setting.discount_percentage == 0 for offer in all_offers)
 
     @property
     def status(self) -> GameStatus:
         """Determine the current status of the game promotion."""
-        if not self.promotions or not self.promotions.promotional_offers:
+        if not self.promotions:
             return GameStatus.EXPIRED
 
-        for offer in self.promotions.promotional_offers:
-            if offer.is_active:
-                return GameStatus.ACTIVE
-            if offer.is_upcoming:
-                return GameStatus.UPCOMING
+        all_offers = self.promotions.get_all_offers()
+        if not all_offers:
+            return GameStatus.EXPIRED
+
+        # Only consider 100% free games (not just discounted)
+        for offer in all_offers:
+            if offer.discount_setting.discount_percentage == 0:
+                if offer.is_active:
+                    return GameStatus.ACTIVE
+                if offer.is_upcoming:
+                    return GameStatus.UPCOMING
 
         return GameStatus.EXPIRED
 
     @property
     def available_from(self) -> Optional[datetime]:
         """Get the start date of the promotion."""
-        if not self.promotions or not self.promotions.promotional_offers:
+        if not self.promotions:
             return None
-        return self.promotions.promotional_offers[0].start_date
+        all_offers = self.promotions.get_all_offers()
+        if not all_offers:
+            return None
+        return all_offers[0].start_date
 
     @property
     def available_until(self) -> Optional[datetime]:
         """Get the end date of the promotion."""
-        if not self.promotions or not self.promotions.promotional_offers:
+        if not self.promotions:
             return None
-        return self.promotions.promotional_offers[0].end_date
+        all_offers = self.promotions.get_all_offers()
+        if not all_offers:
+            return None
+        return all_offers[0].end_date
 
 
 class FreeGamesResponse(BaseModel):
@@ -178,7 +236,7 @@ class FreeGamesResponse(BaseModel):
     @property
     def games(self) -> list[FreeGame]:
         """Extract and parse free games from the response."""
-        catalog = self.data.get("Catalog", {})
+        catalog = self.data.get("data", {}).get("Catalog", {})
         search_store = catalog.get("searchStore", {})
         elements = search_store.get("elements", [])
 
