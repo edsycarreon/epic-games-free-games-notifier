@@ -33,8 +33,9 @@ Go to [Cloud Build Triggers](https://console.cloud.google.com/cloud-build/trigge
    - **Build configuration**: Cloud Build configuration file
    - **Location**: `cloudbuild.yaml`
 5. Add **Substitution variables**:
-   - Variable: `_DISCORD_WEBHOOK_URL`
-   - Value: `https://discord.com/api/webhooks/YOUR_WEBHOOK_URL`
+   - `_DISCORD_WEBHOOK_URL` = Your Discord webhook URL
+   - `_EPIC_LOCALE` = `en-US`
+   - `_EPIC_COUNTRY` = `PH`
 
 ## Deploy
 
@@ -53,10 +54,14 @@ Cloud Build will automatically:
 
 ## Configuration
 
-All configuration is in `cloudbuild.yaml`:
+All configuration is set via **Cloud Build substitution variables**:
 
+- **Discord Webhook**: `_DISCORD_WEBHOOK_URL`
+- **Locale**: `_EPIC_LOCALE` (default: `en-US`)
+- **Country**: `_EPIC_COUNTRY` (default: `PH`)
+
+Deployment settings in `cloudbuild.yaml`:
 - **Region**: `asia-southeast1`
-- **Environment**: `EPIC_COUNTRY=PH`, `EPIC_LOCALE=en-US`
 - **Schedule**: Daily at 9 AM PHT (Asia/Manila timezone)
 - **Memory**: 512MB
 - **Timeout**: 5 minutes

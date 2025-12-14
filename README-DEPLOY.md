@@ -25,9 +25,10 @@ This will:
    - **Branch**: `^main$`
    - **Build configuration**: Cloud Build configuration file
    - **Location**: `cloudbuild.yaml`
-5. Add **Substitution variables**:
-   - Variable: `_DISCORD_WEBHOOK_URL`
-   - Value: `https://discord.com/api/webhooks/YOUR_WEBHOOK_URL`
+5. Add **Substitution variables** (click "Show advanced"):
+   - `_DISCORD_WEBHOOK_URL` = Your Discord webhook URL
+   - `_EPIC_LOCALE` = `en-US`
+   - `_EPIC_COUNTRY` = `PH`
 6. Click **"Create"**
 
 ### 3. Deploy
@@ -50,9 +51,13 @@ Done! Cloud Build will deploy everything.
 
 ## Configuration
 
-Everything is in `cloudbuild.yaml`:
+Set via Cloud Build substitution variables:
+- `_DISCORD_WEBHOOK_URL` - Your Discord webhook
+- `_EPIC_LOCALE` - `en-US`
+- `_EPIC_COUNTRY` - `PH` (Philippines)
+
+Deployment settings:
 - Region: `asia-southeast1`
-- Country: `PH` (Philippines)
 - Schedule: `0 9 * * *` (9 AM PHT)
 
 ## Testing
