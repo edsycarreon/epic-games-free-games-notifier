@@ -4,33 +4,22 @@ Simple deployment using Cloud Build - just push to main and it deploys automatic
 
 ## One-Time Setup
 
-### 1. Create Discord Webhook Secret
+### 1. Enable Required APIs
 
 ```bash
 # Set your project
 gcloud config set project epic-games-free-games-bot
 
-# Create the secret with your Discord webhook URL
-echo -n "YOUR_DISCORD_WEBHOOK_URL" | gcloud secrets create discord-webhook-url --data-file=-
-
-# Grant Cloud Run access to the secret
-PROJECT_NUMBER=$(gcloud projects describe epic-games-free-games-bot --format="value(projectNumber)")
-gcloud secrets add-iam-policy-binding discord-webhook-url \
-  --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
-  --role="roles/secretmanager.secretAccessor"
-```
-
-### 2. Enable Required APIs
-
-```bash
+# Enable APIs
 gcloud services enable \
   cloudbuild.googleapis.com \
   run.googleapis.com \
-  cloudscheduler.googleapis.com \
-  secretmanager.googleapis.com
+  cloudscheduler.googleapis.com
 ```
 
-### 3. Connect Repository to Cloud Build
+Or just run: `./setup.sh`
+
+### 2. Connect Repository to Cloud Build
 
 Go to [Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) and:
 
@@ -43,6 +32,9 @@ Go to [Cloud Build Triggers](https://console.cloud.google.com/cloud-build/trigge
    - **Branch**: `^main$`
    - **Build configuration**: Cloud Build configuration file
    - **Location**: `cloudbuild.yaml`
+5. Add **Substitution variables**:
+   - Variable: `_DISCORD_WEBHOOK_URL`
+   - Value: `https://discord.com/api/webhooks/YOUR_WEBHOOK_URL`
 
 ## Deploy
 
@@ -104,11 +96,11 @@ curl -X POST $SERVICE_URL/check
 
 ## Update Discord Webhook
 
-```bash
-echo -n "NEW_WEBHOOK_URL" | gcloud secrets versions add discord-webhook-url --data-file=-
-```
-
-Then redeploy by pushing to main.
+1. Go to [Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers)
+2. Click on your trigger → **Edit**
+3. Update the `_DISCORD_WEBHOOK_URL` value
+4. Click **Save**
+5. Redeploy: `git push origin main`
 
 ---
 

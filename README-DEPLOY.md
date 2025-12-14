@@ -12,8 +12,7 @@ Get Discord notifications for free games on Epic Games Store (Philippines region
 
 This will:
 - Enable required GCP APIs
-- Create Discord webhook secret
-- Configure permissions
+- Configure project settings
 
 ### 2. Connect Repository
 
@@ -26,7 +25,10 @@ This will:
    - **Branch**: `^main$`
    - **Build configuration**: Cloud Build configuration file
    - **Location**: `cloudbuild.yaml`
-5. Click **"Create"**
+5. Add **Substitution variables**:
+   - Variable: `_DISCORD_WEBHOOK_URL`
+   - Value: `https://discord.com/api/webhooks/YOUR_WEBHOOK_URL`
+6. Click **"Create"**
 
 ### 3. Deploy
 
@@ -73,10 +75,12 @@ gcloud run services logs read epic-games-notifier --region=asia-southeast1
 
 ## Update Discord Webhook
 
-```bash
-echo -n "NEW_WEBHOOK_URL" | gcloud secrets versions add discord-webhook-url --data-file=-
-git push origin main  # Redeploy
-```
+1. Go to [Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers?project=epic-games-free-games-bot)
+2. Click on your trigger
+3. Click **"Edit"**
+4. Update the `_DISCORD_WEBHOOK_URL` substitution variable
+5. Click **"Save"**
+6. Push to redeploy: `git push origin main`
 
 ---
 
