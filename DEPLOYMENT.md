@@ -77,4 +77,28 @@ gcloud run services logs read epic-games-notifier --region=asia-southeast1
 
 **🎉 Done!** Your bot is now live and will check daily at 9 AM PHT.
 
-Need help? See [DEPLOY.md](DEPLOY.md) for more details.
+## Update Configuration
+
+To change Discord webhook or country settings:
+
+1. Go to [Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers?project=epic-games-free-games-bot)
+2. Click on your trigger → **Edit**
+3. Update substitution variables
+4. Click **Save**
+5. Redeploy: `git push origin main`
+
+## Troubleshooting
+
+**Deployment fails with "cannot update environment variable" error:**
+- This happens if the service was previously deployed with secrets
+- The `cloudbuild.yaml` already has `--clear-secrets` to fix this
+- Just push again: `git push origin main`
+
+**Logs:**
+```bash
+# View Cloud Run logs
+gcloud run services logs read epic-games-notifier --region=asia-southeast1 --limit=50
+
+# View Cloud Build logs
+gcloud builds list --limit=5
+```
