@@ -1,6 +1,7 @@
 """Discord notification handler (for future implementation)."""
 
 import logging
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import requests
@@ -9,6 +10,9 @@ from .config import DiscordConfig
 from .models import FreeGame
 
 logger = logging.getLogger(__name__)
+
+# Philippine Time is UTC+8
+PHT = timezone(timedelta(hours=8))
 
 
 class DiscordNotifier:
@@ -91,6 +95,19 @@ class DiscordNotifier:
             logger.error(f"Failed to send Discord notification: {exc}")
             return False
 
+    def _format_datetime_pht(self, dt: datetime) -> str:
+        """
+        Format datetime in Philippine Time.
+
+        Args:
+            dt: Datetime to format
+
+        Returns:
+            Formatted datetime string in PHT
+        """
+        pht_time = dt.astimezone(PHT)
+        return pht_time.strftime("%Y-%m-%d %H:%M PHT")
+
     def _create_game_embed(self, game: FreeGame, include_image: bool = True) -> dict:
         """
         Create Discord embed for a game.
@@ -118,7 +135,7 @@ class DiscordNotifier:
             embed["fields"].append(
                 {
                     "name": "Available From",
-                    "value": game.available_from.strftime("%Y-%m-%d %H:%M UTC"),
+                    "value": self._format_datetime_pht(game.available_from),
                     "inline": True,
                 }
             )
@@ -127,7 +144,7 @@ class DiscordNotifier:
             embed["fields"].append(
                 {
                     "name": "Available Until",
-                    "value": game.available_until.strftime("%Y-%m-%d %H:%M UTC"),
+                    "value": self._format_datetime_pht(game.available_until),
                     "inline": True,
                 }
             )
