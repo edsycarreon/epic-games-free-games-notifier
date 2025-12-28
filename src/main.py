@@ -15,15 +15,6 @@ logger = logging.getLogger(__name__)
 
 
 def format_game_info(game: FreeGame) -> str:
-    """
-    Format game information for display.
-
-    Args:
-        game: Free game object
-
-    Returns:
-        Formatted string with game information
-    """
     lines = [
         f"\n{'=' * 60}",
         f"Title: {game.title}",
@@ -48,13 +39,6 @@ def format_game_info(game: FreeGame) -> str:
 
 
 def display_games(games: list[FreeGame], title: str) -> None:
-    """
-    Display games information to console.
-
-    Args:
-        games: List of free games
-        title: Section title
-    """
     print(f"\n{'#' * 60}")
     print(f"# {title}")
     print(f"{'#' * 60}")
@@ -68,12 +52,6 @@ def display_games(games: list[FreeGame], title: str) -> None:
 
 
 def main() -> int:
-    """
-    Main entry point for the application.
-
-    Returns:
-        Exit code (0 for success, 1 for error)
-    """
     parser = argparse.ArgumentParser(
         description="Fetch free games from Epic Games Store"
     )
@@ -106,29 +84,24 @@ def main() -> int:
 
     args = parser.parse_args()
 
-    # Load configuration
     try:
         config = load_config(args.config)
     except Exception as exc:
         print(f"Error loading configuration: {exc}", file=sys.stderr)
         return 1
 
-    # Override log level if specified
     if args.log_level:
         config.logging.level = args.log_level
 
-    # Setup logging
     setup_logging(config.logging)
     logger.info("Starting Epic Games Free Games Notifier")
 
-    # Create API client
     try:
         with EpicGamesClient(
             locale=config.epic_games.locale,
             country=config.epic_games.country,
             allow_countries=config.epic_games.allow_countries,
         ) as client:
-            # Fetch games
             if args.active_only:
                 games = client.get_active_games()
                 display_games(games, "CURRENTLY FREE GAMES")
@@ -145,7 +118,6 @@ def main() -> int:
 
                 games = all_games
 
-            # Send Discord notifications if requested
             if args.send_discord and config.discord.enabled:
                 notifier = DiscordNotifier(config.discord)
 
