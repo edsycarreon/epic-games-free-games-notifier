@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Web server for Google Cloud Run deployment.
-
-This server provides HTTP endpoints for Cloud Scheduler to trigger
-the Epic Games free games check and send notifications.
-"""
+"""HTTP server for Cloud Run deployment."""
 
 import logging
 import os
@@ -16,14 +12,12 @@ from src.config import load_config, setup_logging
 from src.discord_notifier import DiscordNotifier
 from src.exceptions import EpicGamesAPIError
 
-# Initialize logging early
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-# Load configuration
 try:
     config = load_config()
     setup_logging(config.logging)
@@ -34,20 +28,10 @@ except Exception as exc:
 
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
-    """HTTP request handler for Cloud Run health checks and scheduled tasks."""
-
     def log_message(self, format: str, *args) -> None:
-        """Override to use Python logging instead of stderr."""
         logger.info(f"{self.address_string()} - {format % args}")
 
     def _send_response(self, status_code: int, message: str) -> None:
-        """
-        Send HTTP response.
-
-        Args:
-            status_code: HTTP status code
-            message: Response message
-        """
         self.send_response(status_code)
         self.send_header("Content-type", "application/json")
         self.end_headers()
@@ -55,7 +39,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.wfile.write(response.encode())
 
     def do_GET(self) -> None:
-        """Handle GET requests."""
         if self.path == "/health" or self.path == "/":
             self._handle_health()
         elif self.path == "/check":
@@ -64,18 +47,15 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self._send_response(404, "Not Found")
 
     def do_POST(self) -> None:
-        """Handle POST requests (for Cloud Scheduler)."""
         if self.path == "/check":
             self._handle_check()
         else:
             self._send_response(404, "Not Found")
 
     def _handle_health(self) -> None:
-        """Handle health check endpoint."""
         self._send_response(200, "healthy")
 
     def _handle_check(self) -> None:
-        """Handle the main check endpoint that fetches games and sends notifications."""
         if config is None:
             logger.error("Configuration not loaded")
             self._send_response(500, "Configuration error")
@@ -84,7 +64,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         try:
             logger.info("Starting Epic Games free games check")
 
-            # Create API client and fetch games
             with EpicGamesClient(
                 locale=config.epic_games.locale,
                 country=config.epic_games.country,
@@ -98,7 +77,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     f"Found {len(active_games)} active and {len(upcoming_games)} upcoming games"
                 )
 
-                # Send Discord notifications if enabled
                 if config.discord.enabled:
                     notifier = DiscordNotifier(config.discord)
                     notifications_sent = 0
@@ -125,7 +103,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 else:
                     logger.info("Discord notifications disabled")
 
-                # Log game information
                 for game in active_games:
                     logger.info(f"Active: {game.title} - {game.store_url}")
                 for game in upcoming_games:
@@ -145,12 +122,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
 
 def run_server(port: int = 8080) -> None:
-    """
-    Run the HTTP server.
-
-    Args:
-        port: Port to listen on (default: 8080 for Cloud Run)
-    """
     server_address = ("", port)
     httpd = HTTPServer(server_address, HealthCheckHandler)
 
@@ -166,12 +137,6 @@ def run_server(port: int = 8080) -> None:
 
 
 def main() -> int:
-    """
-    Main entry point.
-
-    Returns:
-        Exit code
-    """
     port = int(os.environ.get("PORT", 8080))
 
     try:
