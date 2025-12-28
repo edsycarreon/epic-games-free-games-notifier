@@ -11,46 +11,36 @@ from pydantic_settings import BaseSettings
 
 
 class EpicGamesConfig(BaseModel):
-    """Epic Games API configuration."""
-
     locale: str = "en-US"
     country: str = "US"
     allow_countries: str = "US"
 
 
 class DiscordConfig(BaseModel):
-    """Discord notification configuration."""
-
     enabled: bool = False
     webhook_url: Optional[str] = None
     mention_role_id: Optional[str] = None
 
 
 class NotificationConfig(BaseModel):
-    """Notification settings."""
-
     notify_current_games: bool = True
     notify_upcoming_games: bool = True
     include_game_images: bool = True
 
 
 class LoggingConfig(BaseModel):
-    """Logging configuration."""
-
     level: str = "INFO"
     format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     file: str = "epic_games_notifier.log"
 
 
 class Config(BaseSettings):
-    """Main application configuration."""
-
     epic_games: EpicGamesConfig = Field(default_factory=EpicGamesConfig)
     discord: DiscordConfig = Field(default_factory=DiscordConfig)
     notifications: NotificationConfig = Field(default_factory=NotificationConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
-    # Environment variable overrides
+    # Env vars override YAML config
     discord_webhook_url: Optional[str] = Field(None, validation_alias="DISCORD_WEBHOOK_URL")
     discord_mention_role_id: Optional[str] = Field(
         None, validation_alias="DISCORD_MENTION_ROLE_ID"
@@ -64,7 +54,6 @@ class Config(BaseSettings):
         extra = "ignore"
 
     def apply_env_overrides(self) -> None:
-        """Apply environment variable overrides to config."""
         if self.discord_webhook_url:
             self.discord.webhook_url = self.discord_webhook_url
             self.discord.enabled = True
@@ -81,19 +70,6 @@ class Config(BaseSettings):
 
 
 def load_config(config_path: Optional[Path] = None) -> Config:
-    """
-    Load configuration from YAML file and environment variables.
-
-    Args:
-        config_path: Path to config.yaml file. If None, looks in current directory.
-
-    Returns:
-        Loaded configuration
-
-    Raises:
-        FileNotFoundError: If config file doesn't exist
-        yaml.YAMLError: If config file is invalid
-    """
     if config_path is None:
         config_path = Path.cwd() / "config.yaml"
 
@@ -118,37 +94,24 @@ def load_config(config_path: Optional[Path] = None) -> Config:
 
 
 def setup_logging(config: LoggingConfig) -> None:
-    """
-    Configure logging based on settings.
-
-    Args:
-        config: Logging configuration
-    """
     log_level = getattr(logging, config.level.upper(), logging.INFO)
-
-    # Create formatter
     formatter = logging.Formatter(config.format)
 
-    # Configure root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
-
-    # Clear existing handlers
     root_logger.handlers.clear()
 
-    # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setLevel(log_level)
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
 
-    # File handler
     if config.file:
         file_handler = logging.FileHandler(config.file)
         file_handler.setLevel(log_level)
         file_handler.setFormatter(formatter)
         root_logger.addHandler(file_handler)
 
-    # Reduce noise from third-party libraries
+    # Suppress noisy third-party loggers
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("requests").setLevel(logging.WARNING)
