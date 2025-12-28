@@ -1,4 +1,4 @@
-"""Discord notification handler (for future implementation)."""
+"""Discord webhook notifications."""
 
 import logging
 from datetime import datetime, timezone, timedelta
@@ -11,37 +11,16 @@ from .models import FreeGame
 
 logger = logging.getLogger(__name__)
 
-# Philippine Time is UTC+8
-PHT = timezone(timedelta(hours=8))
+PHT = timezone(timedelta(hours=8))  # Philippine Time
 
 
 class DiscordNotifier:
-    """Handle Discord webhook notifications."""
-
     def __init__(self, config: DiscordConfig) -> None:
-        """
-        Initialize Discord notifier.
-
-        Args:
-            config: Discord configuration
-        """
         self.config = config
         self.webhook_url = config.webhook_url
         self.mention_role_id = config.mention_role_id
 
-    def send_free_game_notification(
-        self, game: FreeGame, include_image: bool = True
-    ) -> bool:
-        """
-        Send notification about a free game to Discord.
-
-        Args:
-            game: Free game to notify about
-            include_image: Whether to include game thumbnail
-
-        Returns:
-            True if notification was sent successfully, False otherwise
-        """
+    def send_free_game_notification(self, game: FreeGame, include_image: bool = True) -> bool:
         if not self.config.enabled or not self.webhook_url:
             logger.warning("Discord notifications not enabled or webhook URL not set")
             return False
@@ -64,17 +43,6 @@ class DiscordNotifier:
     def send_multiple_games_notification(
         self, games: list[FreeGame], title: str, include_images: bool = True
     ) -> bool:
-        """
-        Send notification about multiple games to Discord.
-
-        Args:
-            games: List of free games
-            title: Notification title
-            include_images: Whether to include game thumbnails
-
-        Returns:
-            True if notification was sent successfully, False otherwise
-        """
         if not self.config.enabled or not self.webhook_url:
             logger.warning("Discord notifications not enabled or webhook URL not set")
             return False
@@ -96,35 +64,20 @@ class DiscordNotifier:
             return False
 
     def _format_datetime_pht(self, dt: datetime) -> str:
-        """
-        Format datetime in Philippine Time.
-
-        Args:
-            dt: Datetime to format
-
-        Returns:
-            Formatted datetime string in PHT
-        """
-        pht_time = dt.astimezone(PHT)
-        return pht_time.strftime("%Y-%m-%d %H:%M PHT")
+        return dt.astimezone(PHT).strftime("%Y-%m-%d %H:%M PHT")
 
     def _create_game_embed(self, game: FreeGame, include_image: bool = True) -> dict:
-        """
-        Create Discord embed for a game.
+        # Epic sometimes returns title as description - use placeholder instead
+        if game.description == game.title or len(game.description) < 10:
+            description = "Free game available on Epic Games Store. Click to claim!"
+        else:
+            description = game.description[:500] + ("..." if len(game.description) > 500 else "")
 
-        Args:
-            game: Free game
-            include_image: Whether to include thumbnail
-
-        Returns:
-            Discord embed dictionary
-        """
         embed = {
             "title": game.title,
-            "description": game.description[:500]
-            + ("..." if len(game.description) > 500 else ""),
+            "description": description,
             "url": game.store_url,
-            "color": 3447003,  # Blue color
+            "color": 3447003,
             "fields": [
                 {"name": "Publisher", "value": game.publisher, "inline": True},
                 {"name": "Status", "value": game.status.value.title(), "inline": True},
