@@ -27,33 +27,16 @@ class EpicGamesClient:
         country: str = "US",
         allow_countries: Optional[str] = None,
     ) -> None:
-        """
-        Initialize Epic Games API client.
-
-        Args:
-            locale: Locale for game information (e.g., 'en-US', 'es-ES')
-            country: Country code (e.g., 'US', 'GB')
-            allow_countries: Comma-separated list of allowed countries
-        """
         self.locale = locale
         self.country = country
         self.allow_countries = allow_countries or country
-
         self.session = self._create_session()
-        logger.info(
-            f"Initialized EpicGamesClient with locale={locale}, country={country}"
-        )
+        logger.info(f"Initialized EpicGamesClient with locale={locale}, country={country}")
 
     def _create_session(self) -> requests.Session:
-        """
-        Create requests session with retry logic.
-
-        Returns:
-            Configured requests session
-        """
         session = requests.Session()
 
-        # Configure retry strategy
+        # Retry on rate limits (429) and server errors (5xx)
         retry_strategy = Retry(
             total=self.MAX_RETRIES,
             backoff_factor=1,
@@ -65,29 +48,15 @@ class EpicGamesClient:
         session.mount("http://", adapter)
         session.mount("https://", adapter)
 
-        # Set default headers
-        session.headers.update(
-            {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/91.0.4472.124 Safari/537.36"
-            }
-        )
+        session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/91.0.4472.124 Safari/537.36"
+        })
 
         return session
 
     def get_free_games(self) -> list[FreeGame]:
-        """
-        Fetch current and upcoming free games from Epic Games Store.
-
-        Returns:
-            List of FreeGame objects
-
-        Raises:
-            NetworkError: If network request fails
-            RateLimitError: If rate limit is exceeded
-            InvalidResponseError: If response cannot be parsed
-        """
         url = f"{self.BASE_URL}{self.FREE_GAMES_ENDPOINT}"
         params = {
             "locale": self.locale,
@@ -119,7 +88,6 @@ class EpicGamesClient:
             logger.error(f"Failed to parse JSON response: {exc}")
             raise InvalidResponseError("Invalid JSON response") from exc
 
-        # Clean known harmless errors (Epic's API sometimes returns error code 1004)
         data = self._clean_response_errors(data)
 
         try:
@@ -133,17 +101,7 @@ class EpicGamesClient:
         return games
 
     def _clean_response_errors(self, data: dict) -> dict:
-        """
-        Remove known harmless errors from API response.
-
-        Epic Games API sometimes returns error code 1004 which can be safely ignored.
-
-        Args:
-            data: Raw API response
-
-        Returns:
-            Cleaned response data
-        """
+        """Epic's API returns error 1004 for region-restricted games - safe to ignore."""
         if "errors" in data:
             cleaned_errors = [
                 error
@@ -158,34 +116,17 @@ class EpicGamesClient:
         return data
 
     def get_active_games(self) -> list[FreeGame]:
-        """
-        Get currently active free games.
-
-        Returns:
-            List of currently free games
-        """
-        games = self.get_free_games()
-        return [game for game in games if game.status.value == "active"]
+        return [g for g in self.get_free_games() if g.status.value == "active"]
 
     def get_upcoming_games(self) -> list[FreeGame]:
-        """
-        Get upcoming free games.
-
-        Returns:
-            List of upcoming free games
-        """
-        games = self.get_free_games()
-        return [game for game in games if game.status.value == "upcoming"]
+        return [g for g in self.get_free_games() if g.status.value == "upcoming"]
 
     def close(self) -> None:
-        """Close the session."""
         self.session.close()
         logger.debug("Session closed")
 
     def __enter__(self) -> "EpicGamesClient":
-        """Context manager entry."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        """Context manager exit."""
         self.close()
